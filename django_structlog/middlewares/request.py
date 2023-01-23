@@ -1,8 +1,11 @@
 import uuid
 
+import asyncio
 import structlog
+from asgiref.sync import sync_to_async
 from django.core.exceptions import PermissionDenied
 from django.http import Http404
+from django.utils.decorators import sync_and_async_middleware
 
 from .. import signals
 
@@ -30,51 +33,101 @@ class RequestMiddleware:
         self.get_response = get_response
         self._raised_exception = False
 
+    @sync_and_async_middleware
     def __call__(self, request):
         from ipware import get_client_ip
 
-        request_id = get_request_header(
-            request, "x-request-id", "HTTP_X_REQUEST_ID"
-        ) or str(uuid.uuid4())
+        if asyncio.iscoroutinefunction(request):
+            async def middleware(request):
+                request_id = await sync_to_async(get_request_header(
+                    request, "x-request-id", "HTTP_X_REQUEST_ID"
+                ) or str(uuid.uuid4()))()
 
-        correlation_id = get_request_header(
-            request, "x-correlation-id", "HTTP_X_CORRELATION_ID"
-        )
+                correlation_id = await sync_to_async(get_request_header(
+                    request, "x-correlation-id", "HTTP_X_CORRELATION_ID"
+                ))()
 
-        structlog.contextvars.bind_contextvars(request_id=request_id)
-        self.bind_user_id(request)
-        if correlation_id:
-            structlog.contextvars.bind_contextvars(correlation_id=correlation_id)
+                await sync_to_async(structlog.contextvars.bind_contextvars(request_id=request_id))()
+                await sync_to_async(self.bind_user_id(request))()
+                if correlation_id:
+                    await sync_to_async(structlog.contextvars.bind_contextvars(correlation_id=correlation_id))()
 
-        ip, _ = get_client_ip(request)
-        structlog.contextvars.bind_contextvars(ip=ip)
-        signals.bind_extra_request_metadata.send(
-            sender=self.__class__, request=request, logger=logger
-        )
+                ip, _ = await sync_to_async(get_client_ip(request))()
+                await sync_to_async(structlog.contextvars.bind_contextvars(ip=ip))()
+                await sync_to_async(signals.bind_extra_request_metadata.send(
+                    sender=self.__class__, request=request, logger=logger
+                ))()
 
-        logger.info(
-            "request_started",
-            request=self.format_request(request),
-            user_agent=request.META.get("HTTP_USER_AGENT"),
-        )
-        self._raised_exception = False
-        response = self.get_response(request)
-        if not self._raised_exception:
-            self.bind_user_id(request)
-            signals.bind_extra_request_finished_metadata.send(
-                sender=self.__class__,
-                request=request,
-                logger=logger,
-                response=response,
-            )
-            logger.info(
-                "request_finished",
-                code=response.status_code,
-                request=self.format_request(request),
-            )
+                await sync_to_async(logger.info(
+                    "request_started",
+                    request=self.format_request(request),
+                    user_agent=request.META.get("HTTP_USER_AGENT"),
+                ))()
+                self._raised_exception = False
+                response = await sync_to_async(self.get_response(request))()
+                if not self._raised_exception:
+                    await sync_to_async(self.bind_user_id(request))()
+                    await sync_to_async(signals.bind_extra_request_finished_metadata.send(
+                        sender=self.__class__,
+                        request=request,
+                        logger=logger,
+                        response=response,
+                    ))()
+                    await sync_to_async(logger.info(
+                        "request_finished",
+                        code=response.status_code,
+                        request=self.format_request(request),
+                    ))()
 
-        structlog.contextvars.clear_contextvars()
-        return response
+                await sync_to_async(structlog.contextvars.clear_contextvars())()
+                return response
+
+        else:
+            def middleware(request):
+                request_id = get_request_header(
+                    request, "x-request-id", "HTTP_X_REQUEST_ID"
+                ) or str(uuid.uuid4())
+
+                correlation_id = get_request_header(
+                    request, "x-correlation-id", "HTTP_X_CORRELATION_ID"
+                )
+
+                structlog.contextvars.bind_contextvars(request_id=request_id)
+                self.bind_user_id(request)
+                if correlation_id:
+                    structlog.contextvars.bind_contextvars(correlation_id=correlation_id)
+
+                ip, _ = get_client_ip(request)
+                structlog.contextvars.bind_contextvars(ip=ip)
+                signals.bind_extra_request_metadata.send(
+                    sender=self.__class__, request=request, logger=logger
+                )
+
+                logger.info(
+                    "request_started",
+                    request=self.format_request(request),
+                    user_agent=request.META.get("HTTP_USER_AGENT"),
+                )
+                self._raised_exception = False
+                response = self.get_response(request)
+                if not self._raised_exception:
+                    self.bind_user_id(request)
+                    signals.bind_extra_request_finished_metadata.send(
+                        sender=self.__class__,
+                        request=request,
+                        logger=logger,
+                        response=response,
+                    )
+                    logger.info(
+                        "request_finished",
+                        code=response.status_code,
+                        request=self.format_request(request),
+                    )
+
+                structlog.contextvars.clear_contextvars()
+                return response
+
+        return middleware
 
     @staticmethod
     def format_request(request):
