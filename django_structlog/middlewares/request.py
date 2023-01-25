@@ -127,7 +127,7 @@ class RequestMiddleware:
                 structlog.contextvars.clear_contextvars()
                 return response
 
-        return middleware
+        return middleware(request)
 
     @staticmethod
     def format_request(request):
