@@ -39,6 +39,7 @@ class RequestMiddleware:
 
         if asyncio.iscoroutinefunction(request):
             async def middleware(request):
+                print("AAAA running async")
                 request_id = await sync_to_async(get_request_header(
                     request, "x-request-id", "HTTP_X_REQUEST_ID"
                 ) or str(uuid.uuid4()))()
@@ -84,6 +85,7 @@ class RequestMiddleware:
 
         else:
             def middleware(request):
+                print("AAAA running sync")
                 request_id = get_request_header(
                     request, "x-request-id", "HTTP_X_REQUEST_ID"
                 ) or str(uuid.uuid4())
