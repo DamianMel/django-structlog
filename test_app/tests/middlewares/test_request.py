@@ -20,7 +20,7 @@ from django_structlog.signals import (
 )
 
 
-class TestRequestMiddleware(TestCase):
+class Testrequest_middleware(TestCase):
     def setUp(self):
         self.factory = RequestFactory()
         self.logger = structlog.getLogger(__name__)
@@ -43,7 +43,7 @@ class TestRequestMiddleware(TestCase):
 
         request = self.factory.get("/foo")
 
-        middleware = middlewares.RequestMiddleware(get_response)
+        middleware = middlewares.request_middleware(get_response)
         with patch("uuid.UUID.__str__", return_value=expected_uuid):
             middleware(request)
 
@@ -74,7 +74,7 @@ class TestRequestMiddleware(TestCase):
         request = self.factory.get("/foo")
         request.user = None
 
-        middleware = middlewares.RequestMiddleware(get_response)
+        middleware = middlewares.request_middleware(get_response)
         with patch("uuid.UUID.__str__", return_value=expected_uuid):
             middleware(request)
 
@@ -105,7 +105,7 @@ class TestRequestMiddleware(TestCase):
         request = self.factory.get("/foo")
         request.user = AnonymousUser()
 
-        middleware = middlewares.RequestMiddleware(get_response)
+        middleware = middlewares.request_middleware(get_response)
         with patch("uuid.UUID.__str__", return_value=expected_uuid):
             middleware(request)
 
@@ -140,7 +140,7 @@ class TestRequestMiddleware(TestCase):
         mock_user = User.objects.create()
         request.user = mock_user
 
-        middleware = middlewares.RequestMiddleware(get_response)
+        middleware = middlewares.request_middleware(get_response)
         with patch("uuid.UUID.__str__", return_value=expected_uuid):
             middleware(request)
 
@@ -177,7 +177,7 @@ class TestRequestMiddleware(TestCase):
         mock_user.pk = uuid.UUID(expected_uuid)
         request.user = mock_user
 
-        middleware = middlewares.RequestMiddleware(get_response)
+        middleware = middlewares.request_middleware(get_response)
         middleware(request)
 
         self.assertEqual(1, len(self.log_results.records))
@@ -204,7 +204,7 @@ class TestRequestMiddleware(TestCase):
             pass
 
         request.user = SimpleUser()
-        middleware = middlewares.RequestMiddleware(get_response)
+        middleware = middlewares.request_middleware(get_response)
         middleware(request)
 
         self.assertEqual(1, len(self.log_results.records))
@@ -227,7 +227,7 @@ class TestRequestMiddleware(TestCase):
             request.user = mock_user
             return mock_response
 
-        middleware = middlewares.RequestMiddleware(get_response)
+        middleware = middlewares.request_middleware(get_response)
         with patch("uuid.UUID.__str__", return_value=expected_uuid), self.assertLogs(
             "django_structlog.middlewares.request", logging.INFO
         ) as log_results:
@@ -260,7 +260,7 @@ class TestRequestMiddleware(TestCase):
 
         request = self.factory.get("/foo")
 
-        middleware = middlewares.RequestMiddleware(None)
+        middleware = middlewares.request_middleware(None)
         exception = Exception()
 
         def get_response(_response):
@@ -322,7 +322,7 @@ class TestRequestMiddleware(TestCase):
         mock_user = User.objects.create(email="foo@example.com")
         request.user = mock_user
 
-        middleware = middlewares.RequestMiddleware(get_response)
+        middleware = middlewares.request_middleware(get_response)
         middleware(request)
 
         self.assertEqual(1, len(self.log_results.records))
@@ -355,7 +355,7 @@ class TestRequestMiddleware(TestCase):
         mock_user = User.objects.create(email="foo@example.com")
         request.user = mock_user
 
-        middleware = middlewares.RequestMiddleware(get_response)
+        middleware = middlewares.request_middleware(get_response)
 
         with self.assertLogs(
             "django_structlog.middlewares.request", logging.INFO
@@ -400,7 +400,7 @@ class TestRequestMiddleware(TestCase):
         mock_user = User.objects.create(email="foo@example.com")
 
         request.user = mock_user
-        middleware = middlewares.RequestMiddleware(None)
+        middleware = middlewares.request_middleware(None)
 
         mock_response = Mock()
 
@@ -442,7 +442,7 @@ class TestRequestMiddleware(TestCase):
         request = self.factory.get("/foo")
         request.user = AnonymousUser()
 
-        middleware = middlewares.RequestMiddleware(None)
+        middleware = middlewares.request_middleware(None)
 
         exception = Exception("This is an exception")
 
@@ -495,7 +495,7 @@ class TestRequestMiddleware(TestCase):
         request = self.factory.get("/foo")
         request.user = AnonymousUser()
 
-        middleware = middlewares.RequestMiddleware(None)
+        middleware = middlewares.request_middleware(None)
 
         exception = PermissionDenied()
 
@@ -544,7 +544,7 @@ class TestRequestMiddleware(TestCase):
         request = self.factory.get("/foo")
         request.user = AnonymousUser()
 
-        middleware = middlewares.RequestMiddleware(None)
+        middleware = middlewares.request_middleware(None)
 
         exception = Http404()
 
@@ -600,7 +600,7 @@ class TestRequestMiddleware(TestCase):
 
         request = RequestFactory(HTTP_X_REQUEST_ID=x_request_id).get("/foo")
 
-        middleware = middlewares.RequestMiddleware(get_response)
+        middleware = middlewares.request_middleware(get_response)
         middleware(request)
 
         self.assertEqual(1, len(self.log_results.records))
@@ -624,7 +624,7 @@ class TestRequestMiddleware(TestCase):
 
         request = RequestFactory(HTTP_X_CORRELATION_ID=x_correlation_id).get("/foo")
 
-        middleware = middlewares.RequestMiddleware(get_response)
+        middleware = middlewares.request_middleware(get_response)
         middleware(request)
 
         self.assertEqual(1, len(self.log_results.records))

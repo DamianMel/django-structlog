@@ -173,6 +173,6 @@ structlog.configure(
 )
 
 MIDDLEWARE += [
-    "django_structlog.middlewares.RequestMiddleware",
+    "django_structlog.middlewares.request_middleware",
     "django_structlog.middlewares.CeleryMiddleware",
 ]
