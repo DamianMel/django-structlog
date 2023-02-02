@@ -74,60 +74,60 @@ class AsyncRequestMiddleware(RequestMiddlewareBase):
 
         print("AAAA running async")
         print("sta1")
-        request_id = get_request_header(
+        request_id = await sync_to_async(get_request_header)(
             request, "x-request-id", "HTTP_X_REQUEST_ID"
         ) or str(uuid.uuid4())
 
         print("sta2")
-        correlation_id = await sync_to_async(get_request_header(
+        correlation_id = await sync_to_async(get_request_header)(
             request, "x-correlation-id", "HTTP_X_CORRELATION_ID"
-        ))()
+        )
 
         print("sta3")
-        await sync_to_async(structlog.contextvars.bind_contextvars(request_id=request_id))()
+        await sync_to_async(structlog.contextvars.bind_contextvars)(request_id=request_id)
         print("sta4")
-        await sync_to_async(self.bind_user_id(request))()
+        await sync_to_async(self.bind_user_id)(request)
         if correlation_id:
             print("sta5")
-            await sync_to_async(structlog.contextvars.bind_contextvars(correlation_id=correlation_id))()
+            await sync_to_async(structlog.contextvars.bind_contextvars)(correlation_id=correlation_id)
 
         print("sta6")
-        ip, _ = await sync_to_async(get_client_ip(request))()
+        ip, _ = await sync_to_async(get_client_ip)(request)
         print("sta7")
-        await sync_to_async(structlog.contextvars.bind_contextvars(ip=ip))()
+        await sync_to_async(structlog.contextvars.bind_contextvars)(ip=ip)
         print("sta8")
-        await sync_to_async(signals.bind_extra_request_metadata.send(
+        await sync_to_async(signals.bind_extra_request_metadata.send)(
             sender=self.__class__, request=request, logger=logger
-        ))()
+        )
 
         print("sta9")
-        await sync_to_async(logger.info(
+        await sync_to_async(logger.info)(
             "request_started",
             request=self.format_request(request),
             user_agent=request.META.get("HTTP_USER_AGENT"),
-        ))()
+        )
         self._raised_exception = False
         print("sta10")
-        response = await sync_to_async(self.get_response(request))()
+        response = await self.get_response(request)
         if not self._raised_exception:
             print("sta11")
-            await sync_to_async(self.bind_user_id(request))()
+            await sync_to_async(self.bind_user_id)(request)
             print("sta12")
-            await sync_to_async(signals.bind_extra_request_finished_metadata.send(
+            await sync_to_async(signals.bind_extra_request_finished_metadata.send)(
                 sender=self.__class__,
                 request=request,
                 logger=logger,
                 response=response,
-            ))()
+            )
             print("sta13")
-            await sync_to_async(logger.info(
+            await sync_to_async(logger.info)(
                 "request_finished",
                 code=response.status_code,
                 request=self.format_request(request),
-            ))()
+            )
 
         print("sta14")
-        await sync_to_async(structlog.contextvars.clear_contextvars())()
+        await sync_to_async(structlog.contextvars.clear_contextvars)()
         return response
 
 class SyncRequestMiddleware(RequestMiddlewareBase):
